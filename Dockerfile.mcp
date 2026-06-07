@@ -1,0 +1,9 @@
+FROM python:3.12-alpine
+LABEL org.opencontainers.image.title="contract-guard-mcp"
+LABEL org.opencontainers.image.description="MCP server: pre-interaction risk check for EVM contracts/tokens."
+LABEL org.opencontainers.image.source="https://github.com/eltociear/contract-guard-mcp"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL io.modelcontextprotocol.server.name="io.github.eltociear/contract-guard-mcp"
+WORKDIR /app
+COPY server.py /app/server.py
+ENTRYPOINT ["python3", "/app/server.py"]
