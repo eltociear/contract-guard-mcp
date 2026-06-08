@@ -1,5 +1,7 @@
 # contract-guard-mcp
 
+[![smithery badge](https://smithery.ai/badge/eltociear/contract-guard-mcp)](https://smithery.ai/server/eltociear/contract-guard-mcp) [![MCP Registry](https://img.shields.io/badge/MCP_Registry-active-2da44e)](https://registry.modelcontextprotocol.io)
+
 MCP server for a **pre-interaction risk check** on any EVM contract/token — what an
 agent needs before it approves, swaps, or trusts an address.
 
