@@ -24,3 +24,12 @@ python3 server.py
 ```
 
 MIT licensed.
+
+## Tools
+
+- `check_contract(address, chain)` — is-contract/EOA, EIP-7702, proxy, ERC20 metadata, risk score
+- `check_approval(token, owner, spender, chain)` — ERC20 allowance audit; flags **unlimited approvals** (the #1 drain vector)
+
+## Free MCP vs paid x402
+
+This MCP server is **free** (run it locally / via your client). For **server-side, batch, or no-install** use, the same engine is a pay-per-call **x402** HTTP API — `POST https://eltociear-contract-guard.hf.space/check` ($0.005 USDC on Base, no signup). Your agent's wallet pays per call.

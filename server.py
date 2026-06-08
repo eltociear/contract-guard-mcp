@@ -192,12 +192,53 @@ def analyze(address, chain="base"):
         ),
     }
 
+ALLOWANCE_SEL = "0xdd62ed3e"  # allowance(address,address)
+_UINT_MAX = (1 << 256) - 1
+
+
+def check_approval(token, owner, spender, chain="base"):
+    """How much of `owner`'s `token` the `spender` is approved to move. Flags unlimited approvals."""
+    chain = (chain or "base").lower()
+    if chain not in RPCS:
+        return {"error": "unsupported chain '%s'" % chain}
+    for label, a in (("token", token), ("owner", owner), ("spender", spender)):
+        if not (isinstance(a, str) and a.startswith("0x") and len(a) == 42):
+            return {"error": "invalid %s address" % label}
+    rpc = RPCS[chain]
+    data = ALLOWANCE_SEL + owner[2:].rjust(64, "0").lower() + spender[2:].rjust(64, "0").lower()
+    allowance = _dec_uint(_eth_call(rpc, token, data))
+    if allowance is None:
+        return {"error": "could not read allowance (not an ERC20, or RPC error)"}
+    unlimited = allowance >= (_UINT_MAX >> 1)
+    dec = _dec_uint(_eth_call(rpc, token, SEL["decimals"]))
+    sym = _dec_string(_eth_call(rpc, token, SEL["symbol"]))
+    human = (allowance / (10 ** dec)) if (dec is not None and not unlimited) else None
+    flags, score = [], 0
+    if unlimited:
+        score = 70
+        flags.append("UNLIMITED approval — spender %s can move ALL of the owner's %s at any time. Revoke if not actively needed." % (spender, sym or "token"))
+    elif allowance > 0:
+        score = 20
+        flags.append("Active allowance of %s %s to spender %s." % (human if human is not None else allowance, sym or "", spender))
+    level = "HIGH" if score >= 70 else "MEDIUM" if score >= 20 else "OK"
+    return {
+        "token": token, "owner": owner, "spender": spender, "chain": chain,
+        "allowance_raw": str(allowance), "allowance": human, "unlimited": unlimited,
+        "symbol": sym, "decimals": dec,
+        "risk_level": level, "risk_score": score,
+        "flags": flags or ["No allowance (0) — spender cannot move this token."],
+        "summary": "%s — allowance %s%s to %s" % (
+            level, "UNLIMITED" if unlimited else (human if human is not None else allowance),
+            (" " + sym) if sym else "", spender[:10]),
+    }
+
+
 # ────────────────────────────────────────────────────────
 # MCP stdio server (JSON-RPC 2.0, protocol 2024-11-05)
 # ────────────────────────────────────────────────────────
 import sys
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_NAME = "contract-guard"
 
@@ -218,7 +259,25 @@ TOOLS = [
             },
             "required": ["address"],
         },
-    }
+    },
+    {
+        "name": "check_approval",
+        "description": (
+            "Check how much of an owner's ERC20 token a spender is approved to move (allowance). "
+            "Flags UNLIMITED approvals — the #1 wallet-drain vector. Call this to audit existing approvals "
+            "or before signing an approve(). Pure public RPC, no signing."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "token": {"type": "string", "description": "ERC20 token contract address"},
+                "owner": {"type": "string", "description": "Wallet that granted the approval"},
+                "spender": {"type": "string", "description": "Contract/address approved to spend"},
+                "chain": {"type": "string", "enum": ["base", "ethereum"], "description": "Chain (default: base)"},
+            },
+            "required": ["token", "owner", "spender"],
+        },
+    },
 ]
 
 
@@ -239,13 +298,15 @@ def handle_request(req):
         params = req.get("params", {}) or {}
         name = params.get("name")
         args = params.get("arguments", {}) or {}
-        if name != "check_contract":
-            return {"jsonrpc": "2.0", "id": rid, "result": {
-                "isError": True, "content": [{"type": "text", "text": "Unknown tool: %s" % name}]}}
-        address = args.get("address", "")
-        chain = args.get("chain", "base")
         try:
-            result = analyze(address, chain)
+            if name == "check_contract":
+                result = analyze(args.get("address", ""), args.get("chain", "base"))
+            elif name == "check_approval":
+                result = check_approval(args.get("token", ""), args.get("owner", ""),
+                                        args.get("spender", ""), args.get("chain", "base"))
+            else:
+                return {"jsonrpc": "2.0", "id": rid, "result": {
+                    "isError": True, "content": [{"type": "text", "text": "Unknown tool: %s" % name}]}}
         except Exception as e:
             return {"jsonrpc": "2.0", "id": rid, "result": {
                 "isError": True, "content": [{"type": "text", "text": "rpc error: %s" % e}]}}
