@@ -6,7 +6,7 @@
     "url": "https://github.com/eltociear/contract-guard-mcp",
     "source": "github"
   },
-  "version": "1.1.0",
+  "version": "1.1.1",
   "packages": [
     {
       "registryType": "oci",
@@ -14,6 +14,17 @@
       "transport": {
         "type": "stdio"
       }
+    }
+  ],
+  "title": "Contract Guard — EVM Token & Approval Risk Check",
+  "websiteUrl": "https://eltociear-contract-guard.hf.space",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/eltociear/skill-audit-mcp/main/assets/logo.png",
+      "mimeType": "image/png",
+      "sizes": [
+        "400x400"
+      ]
     }
   ]
 }
